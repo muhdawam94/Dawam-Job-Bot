@@ -1,6 +1,5 @@
-# scrapers/web3_jobs.py
-# Scrape langsung dari job board Web3 yang punya API publik
-# + Greenhouse/Lever API untuk perusahaan Web3 spesifik
+# scrapers/web3_jobs.py v2
+# Semua perusahaan Web3 dari list Dawam + API Greenhouse/Lever
 
 import requests, time
 from bs4 import BeautifulSoup
@@ -8,249 +7,334 @@ from config import REQUEST_DELAY_SEC
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36"}
 
-# ── Web3 companies yang pakai Greenhouse API ─────────────────
+# ══════════════════════════════════════════════════════════════
+# GREENHOUSE API — perusahaan Web3 yang pakai Greenhouse
+# ══════════════════════════════════════════════════════════════
 GREENHOUSE_COMPANIES = [
-    ("Coinbase",      "coinbase"),
-    ("Gemini",        "gemini"),
-    ("Kraken",        "kraken"),
-    ("Chainalysis",   "chainalysis"),
-    ("Alchemy",       "alchemyinsights"),
-    ("OpenSea",       "opensea"),
-    ("Uniswap",       "uniswaplabs"),
-    ("Compound",      "compoundlabs"),
-    ("Optimism",      "optimism"),
-    ("Arbitrum",      "arbitrum"),
+    # Exchange & Trading
+    ("Coinbase",        "coinbase"),
+    ("Gemini",          "gemini"),
+    ("Kraken",          "kraken"),
+    ("Hyperliquid",     "hyperliquid"),
+
+    # DeFi & Infrastructure
+    ("Uniswap Labs",    "uniswaplabs"),
+    ("Aave",            "aave"),
+    ("Lido",            "lidofinance"),
+    ("Chainlink",       "chainlink"),
+    ("Alchemy",         "alchemyinsights"),
+    ("The Graph",       "thegraph"),
+    ("QuickNode",       "quicknode"),
+
+    # NFT & Gaming
+    ("OpenSea",         "opensea"),
+    ("Magic Eden",      "magiceden"),
+    ("Axie Infinity",   "skymavis"),       # Sky Mavis = Axie
+    ("Illuvium",        "illuvium"),
+    ("Decentraland",    "decentraland"),
+
+    # Wallets
+    ("MetaMask/Consensys", "consensys"),
+    ("Exodus",          "exodus"),
+
+    # Analytics & Tools
+    ("DappRadar",       "dappradar"),
+    ("Chainalysis",     "chainalysis"),
+    ("Fireblocks",      "fireblocks"),
+
+    # Other Web3
+    ("Compound",        "compoundlabs"),
+    ("Optimism",        "optimism"),
+    ("Arbitrum",        "arbitrum"),
+    ("Polygon",         "polygon-labs"),
+    ("Galxe",           "galxe"),
 ]
 
-# ── Web3 companies yang pakai Lever API ─────────────────────
+# ══════════════════════════════════════════════════════════════
+# LEVER API — perusahaan Web3 yang pakai Lever
+# ══════════════════════════════════════════════════════════════
 LEVER_COMPANIES = [
-    ("Consensys",     "consensys"),
-    ("Chainlink",     "chainlink-labs"),
-    ("dYdX",          "dydx"),
-    ("Figment",       "figment"),
-    ("Fireblocks",    "fireblocks"),
-    ("Ledger",        "ledger"),
-    ("Polygon",       "polygon-labs"),
-    ("StarkWare",     "starkware"),
-    ("Aztec",         "azteclabs"),
+    # Exchange & Trading
+    ("OKX",             "okx"),
+    ("Binance",         "binance"),
+
+    # DeFi
+    ("dYdX",            "dydx"),
+    ("Curve Finance",   "curvefi"),
+    ("Polymarket",      "polymarket"),
+    ("Aerodrome",       "aerodrome"),
+
+    # Infrastructure
+    ("Chainlink Labs",  "chainlink-labs"),
+    ("StarkWare",       "starkware"),
+    ("Aztec",           "azteclabs"),
+    ("Figment",         "figment"),
+
+    # NFT & Social
+    ("Blur",            "blur"),
+    ("Rarible",         "rarible"),
+    ("Lens Protocol",   "lens"),
+    ("Warpcast",        "farcaster"),
+    ("CyberConnect",    "cyberconnect"),
+
+    # Wallets
+    ("Rainbow",         "rainbow"),
+    ("Trust Wallet",    "trustwallet"),
+    ("Phantom",         "phantom"),
+
+    # Analytics
+    ("DeBank",          "debank"),
+    ("DeFiLlama",       "defillama"),
+    ("Ledger",          "ledger"),
+    ("Figment",         "figment"),
+]
+
+# ══════════════════════════════════════════════════════════════
+# ASHBY API — banyak startup Web3 baru pakai Ashby
+# ══════════════════════════════════════════════════════════════
+ASHBY_COMPANIES = [
+    ("Uniswap",         "uniswap"),
+    ("Blur",            "blur"),
+    ("Hyperliquid",     "hyperliquid"),
+    ("Polymarket",      "polymarket"),
+    ("Warpcast",        "warpcast"),
+    ("Pixels",          "pixels"),
+    ("Magic Eden",      "magiceden"),
+    ("Aerodrome",       "aerodrome"),
+]
+
+# ══════════════════════════════════════════════════════════════
+# DIRECT API — perusahaan dengan API karir sendiri
+# ══════════════════════════════════════════════════════════════
+DIRECT_CAREERS = [
+    {
+        "name": "Binance",
+        "api": "https://www.binance.com/bapi/composite/v1/public/marketing/job/list",
+        "url_template": "https://www.binance.com/en/careers/job-openings?id={id}",
+        "id_field": "jobId", "title_field": "jobTitle",
+        "desc_field": "jobDescription", "loc_field": "location",
+    },
+    {
+        "name": "OKX",
+        "api": "https://www.okx.com/v2/support/talent/position",
+        "url_template": "https://www.okx.com/careers/detail/{id}",
+        "id_field": "positionId", "title_field": "positionName",
+        "desc_field": "positionDesc", "loc_field": "workCity",
+    },
 ]
 
 WEB3_KEYWORDS = [
-    "python", "developer", "engineer", "backend", "smart contract",
-    "blockchain", "web3", "defi", "trading", "quant", "automation",
-    "solidity", "rust", "react", "typescript", "remote"
+    "python", "developer", "engineer", "backend", "frontend", "fullstack",
+    "smart contract", "blockchain", "web3", "defi", "trading", "quant",
+    "automation", "solidity", "rust", "react", "typescript", "node",
+    "data", "analyst", "researcher", "protocol", "infrastructure", "remote"
 ]
 
-def _is_relevant(text: str) -> bool:
-    text_lower = text.lower()
-    return any(kw in text_lower for kw in WEB3_KEYWORDS)
+def _relevant(text: str) -> bool:
+    t = text.lower()
+    return any(k in t for k in WEB3_KEYWORDS)
 
+# ── Greenhouse scraper ───────────────────────────────────────
 def scrape_greenhouse_web3() -> list[dict]:
-    """Scrape job dari perusahaan Web3 yang pakai Greenhouse."""
     jobs = []
     for company_name, slug in GREENHOUSE_COMPANIES:
         try:
             time.sleep(REQUEST_DELAY_SEC)
-            resp = requests.get(
+            r = requests.get(
                 f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs",
-                params={"content": "true"},
-                headers=HEADERS, timeout=15
+                params={"content": "true"}, headers=HEADERS, timeout=15
             )
-            if resp.status_code != 200:
+            if r.status_code != 200:
                 continue
-            for job in resp.json().get("jobs", []):
-                title = job.get("title", "")
-                if not _is_relevant(title + " " + job.get("content", "")):
+            for j in r.json().get("jobs", []):
+                if not _relevant(j.get("title","") + j.get("content","")):
                     continue
-                uid = str(job.get("id", ""))
+                uid = str(j.get("id",""))
                 jobs.append({
-                    "source":      f"Greenhouse🌿",
+                    "source":      "Greenhouse🌿",
                     "id":          f"gh_{slug}_{uid}",
-                    "title":       title,
+                    "title":       j.get("title",""),
                     "company":     company_name,
-                    "location":    job.get("location", {}).get("name", "Remote"),
-                    "tags":        "web3 crypto blockchain developer",
-                    "description": job.get("content", "")[:500],
-                    "url":         job.get("absolute_url", f"https://boards.greenhouse.io/{slug}/jobs/{uid}"),
+                    "location":    j.get("location",{}).get("name","Remote"),
+                    "tags":        "web3 blockchain developer crypto",
+                    "description": j.get("content","")[:400],
+                    "url":         j.get("absolute_url", f"https://boards.greenhouse.io/{slug}/jobs/{uid}"),
                     "email":       "",
-                    "date":        job.get("updated_at", ""),
+                    "date":        j.get("updated_at",""),
                 })
         except Exception as e:
-            print(f"  [Greenhouse/{company_name}] Error: {e}")
+            print(f"    [GH/{company_name}] {e}")
     return jobs
 
+# ── Lever scraper ────────────────────────────────────────────
 def scrape_lever_web3() -> list[dict]:
-    """Scrape job dari perusahaan Web3 yang pakai Lever."""
     jobs = []
     for company_name, slug in LEVER_COMPANIES:
         try:
             time.sleep(REQUEST_DELAY_SEC)
-            resp = requests.get(
+            r = requests.get(
                 f"https://api.lever.co/v0/postings/{slug}",
-                params={"mode": "json"},
-                headers=HEADERS, timeout=15
+                params={"mode": "json"}, headers=HEADERS, timeout=15
             )
-            if resp.status_code != 200:
+            if r.status_code != 200:
                 continue
-            for job in resp.json():
-                title = job.get("text", "")
-                categories = job.get("categories", {})
-                if not _is_relevant(title + " " + categories.get("team", "")):
+            for j in r.json():
+                cats = j.get("categories", {})
+                if not _relevant(j.get("text","") + cats.get("team","")):
                     continue
-                uid = job.get("id", "")
+                uid = j.get("id","")
                 jobs.append({
-                    "source":      f"Lever⚡",
+                    "source":      "Lever⚡",
                     "id":          f"lv_{slug}_{uid}",
-                    "title":       title,
+                    "title":       j.get("text",""),
                     "company":     company_name,
-                    "location":    categories.get("location", "Remote"),
-                    "tags":        "web3 crypto blockchain developer",
-                    "description": job.get("descriptionPlain", "")[:500],
-                    "url":         job.get("hostedUrl", f"https://jobs.lever.co/{slug}/{uid}"),
+                    "location":    cats.get("location","Remote"),
+                    "tags":        "web3 blockchain developer crypto",
+                    "description": j.get("descriptionPlain","")[:400],
+                    "url":         j.get("hostedUrl", f"https://jobs.lever.co/{slug}/{uid}"),
                     "email":       "",
                     "date":        "",
                 })
         except Exception as e:
-            print(f"  [Lever/{company_name}] Error: {e}")
+            print(f"    [LV/{company_name}] {e}")
     return jobs
 
-def scrape_web3_career_boards() -> list[dict]:
-    """Scrape dari job board khusus Web3."""
+# ── Ashby scraper ────────────────────────────────────────────
+def scrape_ashby_web3() -> list[dict]:
+    jobs = []
+    for company_name, slug in ASHBY_COMPANIES:
+        try:
+            time.sleep(REQUEST_DELAY_SEC)
+            r = requests.get(
+                f"https://jobs.ashbyhq.com/api/non-user-graphql",
+                json={"operationName":"ApiJobBoardWithTeams",
+                      "query":"query ApiJobBoardWithTeams($organizationHostedJobsPageName:String!){jobBoard:jobBoardWithTeams(organizationHostedJobsPageName:$organizationHostedJobsPageName){jobPostings{id title locationName departmentName}}}",
+                      "variables":{"organizationHostedJobsPageName": slug}},
+                headers={**HEADERS, "Content-Type":"application/json"}, timeout=15
+            )
+            if r.status_code != 200:
+                continue
+            for j in r.json().get("data",{}).get("jobBoard",{}).get("jobPostings",[]):
+                if not _relevant(j.get("title","") + j.get("departmentName","")):
+                    continue
+                uid = j.get("id","")
+                jobs.append({
+                    "source":      "Ashby🔷",
+                    "id":          f"ash_{slug}_{uid}",
+                    "title":       j.get("title",""),
+                    "company":     company_name,
+                    "location":    j.get("locationName","Remote"),
+                    "tags":        "web3 blockchain developer crypto",
+                    "description": f"Position at {company_name}",
+                    "url":         f"https://jobs.ashbyhq.com/{slug}/{uid}",
+                    "email":       "",
+                    "date":        "",
+                })
+        except Exception as e:
+            print(f"    [Ash/{company_name}] {e}")
+    return jobs
+
+# ── Web3 job boards ──────────────────────────────────────────
+def scrape_web3_boards() -> list[dict]:
     jobs = []
 
-    # 1. CryptoJobsList
+    # CryptoJobsList
     try:
         time.sleep(REQUEST_DELAY_SEC)
-        resp = requests.get(
-            "https://cryptojobslist.com/api/jobs",
-            headers=HEADERS, timeout=15
-        )
-        if resp.status_code == 200:
-            for item in resp.json().get("jobs", [])[:30]:
-                uid = str(item.get("id", item.get("slug", "")))
+        r = requests.get("https://cryptojobslist.com/api/jobs", headers=HEADERS, timeout=15)
+        if r.status_code == 200:
+            for item in r.json().get("jobs", [])[:40]:
+                uid = str(item.get("id", item.get("slug","")))
+                company = item.get("company",{})
                 jobs.append({
-                    "source":      "CryptoJobsList🌐",
-                    "id":          f"cjl_{uid}",
-                    "title":       item.get("title", ""),
-                    "company":     item.get("company", {}).get("name", "") if isinstance(item.get("company"), dict) else item.get("company", ""),
-                    "location":    item.get("location", "Remote"),
-                    "tags":        " ".join(item.get("tags", [])),
-                    "description": item.get("description", "")[:400],
-                    "url":         item.get("url", f"https://cryptojobslist.com/jobs/{uid}"),
-                    "email":       "",
-                    "date":        item.get("createdAt", ""),
-                })
-        else:
-            # Fallback scrape HTML
-            resp2 = requests.get("https://cryptojobslist.com/python", headers=HEADERS, timeout=15)
-            soup = BeautifulSoup(resp2.text, "html.parser")
-            for card in soup.select("a[href*='/jobs/']")[:15]:
-                title = card.get_text(strip=True)
-                if not title or len(title) < 5: continue
-                href = card.get("href", "")
-                uid = href.split("/")[-1]
-                jobs.append({
-                    "source": "CryptoJobsList🌐", "id": f"cjl_{uid}",
-                    "title": title, "company": "Web3 Company",
-                    "location": "Remote", "tags": "python web3 crypto",
-                    "description": "", "url": f"https://cryptojobslist.com{href}",
-                    "email": "", "date": ""
+                    "source":  "CryptoJobsList🌐",
+                    "id":      f"cjl_{uid}",
+                    "title":   item.get("title",""),
+                    "company": company.get("name","") if isinstance(company,dict) else str(company),
+                    "location": item.get("location","Remote"),
+                    "tags":    " ".join(item.get("tags",[])),
+                    "description": item.get("description","")[:400],
+                    "url":     item.get("url", f"https://cryptojobslist.com/jobs/{uid}"),
+                    "email":   "", "date": item.get("createdAt",""),
                 })
     except Exception as e:
-        print(f"  [CryptoJobsList] Error: {e}")
+        print(f"    [CryptoJobsList] {e}")
 
-    # 2. Web3.career
-    try:
-        time.sleep(REQUEST_DELAY_SEC)
-        resp = requests.get("https://web3.career/python-jobs", headers=HEADERS, timeout=15)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for card in soup.select("tr.job_seen_beacon, .job-card, tr[data-id]")[:20]:
-            title_el = card.select_one("h2 a, h3 a, .job-title, td a")
-            if not title_el: continue
-            company_el = card.select_one(".company, .employer")
-            href = title_el.get("href", "")
-            uid = href.split("/")[-1] or title_el.text.strip()[:20]
-            jobs.append({
-                "source": "Web3Career🔗", "id": f"w3c_{uid}",
-                "title": title_el.text.strip(),
-                "company": company_el.text.strip() if company_el else "Web3 Company",
-                "location": "Remote", "tags": "python web3 developer",
-                "description": card.get_text(" ", strip=True)[:300],
-                "url": f"https://web3.career{href}" if href.startswith("/") else href,
-                "email": "", "date": ""
-            })
-    except Exception as e:
-        print(f"  [Web3.career] Error: {e}")
-
-    # 3. Pompcryptojobs
-    try:
-        time.sleep(REQUEST_DELAY_SEC)
-        resp = requests.get(
-            "https://pompcryptojobs.com/api/jobs",
-            headers=HEADERS, timeout=15
-        )
-        if resp.status_code == 200:
-            for item in resp.json().get("data", [])[:20]:
-                uid = str(item.get("id", ""))
+    # Web3.career
+    for keyword in ["python", "developer", "engineer", "defi", "blockchain"]:
+        try:
+            time.sleep(REQUEST_DELAY_SEC)
+            r = requests.get(f"https://web3.career/{keyword}-jobs", headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+            for card in soup.select("tr[data-id], .job-card")[:10]:
+                title_el = card.select_one("h2 a, h3 a, td a")
+                if not title_el: continue
+                href = title_el.get("href","")
+                uid  = href.split("/")[-1] or title_el.text[:20]
+                company_el = card.select_one(".company, td:nth-child(2)")
                 jobs.append({
-                    "source": "PompCrypto💰", "id": f"pomp_{uid}",
-                    "title": item.get("title", ""),
-                    "company": item.get("company_name", ""),
-                    "location": item.get("location", "Remote"),
-                    "tags": item.get("tags", ""),
-                    "description": item.get("description", "")[:400],
-                    "url": item.get("url", ""),
-                    "email": "", "date": item.get("created_at", "")
+                    "source":  "Web3Career🔗",
+                    "id":      f"w3c_{keyword}_{uid}",
+                    "title":   title_el.text.strip(),
+                    "company": company_el.text.strip() if company_el else "Web3 Company",
+                    "location": "Remote",
+                    "tags":    f"web3 {keyword} developer",
+                    "description": "",
+                    "url":     f"https://web3.career{href}" if href.startswith("/") else href,
+                    "email":   "", "date": "",
                 })
-    except Exception as e:
-        print(f"  [PompCrypto] Error: {e}")
+        except Exception as e:
+            print(f"    [Web3Career/{keyword}] {e}")
 
-    # 4. Binance Careers langsung
+    # Binance direct
     try:
         time.sleep(REQUEST_DELAY_SEC)
-        resp = requests.get(
+        r = requests.get(
             "https://www.binance.com/bapi/composite/v1/public/marketing/job/list",
             headers=HEADERS, timeout=15
         )
-        if resp.status_code == 200:
-            data = resp.json().get("data", {})
-            for item in data.get("list", [])[:20]:
-                title = item.get("jobTitle", "")
-                if not _is_relevant(title):
-                    continue
-                uid = str(item.get("jobId", ""))
+        if r.status_code == 200:
+            for item in r.json().get("data",{}).get("list",[])[:30]:
+                title = item.get("jobTitle","")
+                if not _relevant(title): continue
+                uid = str(item.get("jobId",""))
                 jobs.append({
-                    "source": "Binance🟡", "id": f"bnb_{uid}",
-                    "title": title,
+                    "source":  "Binance🟡",
+                    "id":      f"bnb_{uid}",
+                    "title":   title,
                     "company": "Binance",
-                    "location": item.get("location", "Remote"),
-                    "tags": "web3 crypto blockchain developer python",
-                    "description": item.get("jobDescription", "")[:400],
-                    "url": f"https://www.binance.com/en/careers/job-openings?id={uid}",
-                    "email": "", "date": ""
+                    "location": item.get("location","Remote"),
+                    "tags":    "web3 crypto blockchain developer python",
+                    "description": item.get("jobDescription","")[:400],
+                    "url":     f"https://www.binance.com/en/careers/job-openings?id={uid}",
+                    "email":   "", "date": "",
                 })
     except Exception as e:
-        print(f"  [Binance] Error: {e}")
+        print(f"    [Binance] {e}")
 
     return jobs
 
 def scrape_all_web3() -> list[dict]:
-    """Gabungkan semua scraper Web3."""
     all_jobs = []
 
-    print("  [Web3] Greenhouse companies...")
-    gh_jobs = scrape_greenhouse_web3()
-    print(f"    → {len(gh_jobs)} jobs dari {len(GREENHOUSE_COMPANIES)} Web3 companies")
-    all_jobs.extend(gh_jobs)
+    print("  [Web3-Greenhouse] Scraping...")
+    gh = scrape_greenhouse_web3()
+    print(f"    → {len(gh)} jobs dari {len(GREENHOUSE_COMPANIES)} perusahaan")
+    all_jobs.extend(gh)
 
-    print("  [Web3] Lever companies...")
-    lv_jobs = scrape_lever_web3()
-    print(f"    → {len(lv_jobs)} jobs dari {len(LEVER_COMPANIES)} Web3 companies")
-    all_jobs.extend(lv_jobs)
+    print("  [Web3-Lever] Scraping...")
+    lv = scrape_lever_web3()
+    print(f"    → {len(lv)} jobs dari {len(LEVER_COMPANIES)} perusahaan")
+    all_jobs.extend(lv)
 
-    print("  [Web3] Web3 job boards...")
-    board_jobs = scrape_web3_career_boards()
-    print(f"    → {len(board_jobs)} jobs dari Web3 job boards")
-    all_jobs.extend(board_jobs)
+    print("  [Web3-Ashby] Scraping...")
+    ash = scrape_ashby_web3()
+    print(f"    → {len(ash)} jobs dari {len(ASHBY_COMPANIES)} perusahaan")
+    all_jobs.extend(ash)
+
+    print("  [Web3-Boards] Scraping...")
+    boards = scrape_web3_boards()
+    print(f"    → {len(boards)} jobs dari Web3 job boards")
+    all_jobs.extend(boards)
 
     return all_jobs
