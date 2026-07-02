@@ -1,6 +1,39 @@
-cv.pdf
-data/jobs.db
+﻿# Environment variables (contains secrets!)
 .env
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Database (optional - can commit or ignore)
+# data/jobs.db
+
+# ChromeDriver
+chromedriver.exe
+chromedriver
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+.claude/
+
+# Personal files (optional)
+cv.pdf

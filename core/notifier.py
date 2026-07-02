@@ -60,6 +60,36 @@ def notify_applied(job: dict):
         f"🔗 <a href=\"{job.get('url','')}\">Job Link</a>"
     )
 
+def notify_auto_apply_result(job: dict, success: bool, platform: str, error: str = ""):
+    """Notify user about auto-apply attempt result"""
+    title = job.get('title', '')
+    company = job.get('company', '?')
+    url = job.get('url', '')
+
+    if success:
+        _send(
+            f"🤖✅ <b>AUTO-APPLY BERHASIL!</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💼 {title}\n"
+            f"🏢 {company}\n"
+            f"🔧 Platform: {platform.upper()}\n"
+            f"🔗 <a href=\"{url}\">Cek Status ↗</a>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✨ Form otomatis terisi & submitted!"
+        )
+    else:
+        _send(
+            f"🤖⚠️ <b>AUTO-APPLY PERLU CEK MANUAL</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💼 {title}\n"
+            f"🏢 {company}\n"
+            f"🔧 Platform: {platform}\n"
+            f"❌ Error: {error[:200] if error else 'Form tidak dikenali'}\n"
+            f"🔗 <a href=\"{url}\">Apply Manual ↗</a>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💡 Buka link dan apply manual ya!"
+        )
+
 def notify_summary(stats: dict, new_count: int, applied_count: int):
     _send(
         f"📊 <b>Job Bot Summary</b>\n"

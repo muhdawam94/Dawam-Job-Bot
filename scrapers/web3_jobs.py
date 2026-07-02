@@ -151,7 +151,7 @@ def scrape_greenhouse_web3() -> list[dict]:
                     continue
                 uid = str(j.get("id",""))
                 jobs.append({
-                    "source":      "Greenhouse🌿",
+                    "source":      "Greenhouse[GH]",
                     "id":          f"gh_{slug}_{uid}",
                     "title":       j.get("title",""),
                     "company":     company_name,
@@ -184,7 +184,7 @@ def scrape_lever_web3() -> list[dict]:
                     continue
                 uid = j.get("id","")
                 jobs.append({
-                    "source":      "Lever⚡",
+                    "source":      "Lever[LV]",
                     "id":          f"lv_{slug}_{uid}",
                     "title":       j.get("text",""),
                     "company":     company_name,
@@ -219,7 +219,7 @@ def scrape_ashby_web3() -> list[dict]:
                     continue
                 uid = j.get("id","")
                 jobs.append({
-                    "source":      "Ashby🔷",
+                    "source":      "Ashby[ASH]",
                     "id":          f"ash_{slug}_{uid}",
                     "title":       j.get("title",""),
                     "company":     company_name,
@@ -247,7 +247,7 @@ def scrape_web3_boards() -> list[dict]:
                 uid = str(item.get("id", item.get("slug","")))
                 company = item.get("company",{})
                 jobs.append({
-                    "source":  "CryptoJobsList🌐",
+                    "source":  "CryptoJobsList[CJL]",
                     "id":      f"cjl_{uid}",
                     "title":   item.get("title",""),
                     "company": company.get("name","") if isinstance(company,dict) else str(company),
@@ -273,7 +273,7 @@ def scrape_web3_boards() -> list[dict]:
                 uid  = href.split("/")[-1] or title_el.text[:20]
                 company_el = card.select_one(".company, td:nth-child(2)")
                 jobs.append({
-                    "source":  "Web3Career🔗",
+                    "source":  "Web3Career[W3C]",
                     "id":      f"w3c_{keyword}_{uid}",
                     "title":   title_el.text.strip(),
                     "company": company_el.text.strip() if company_el else "Web3 Company",
@@ -299,7 +299,7 @@ def scrape_web3_boards() -> list[dict]:
                 if not _relevant(title): continue
                 uid = str(item.get("jobId",""))
                 jobs.append({
-                    "source":  "Binance🟡",
+                    "source":  "Binance[BIN]",
                     "id":      f"bnb_{uid}",
                     "title":   title,
                     "company": "Binance",
@@ -319,22 +319,22 @@ def scrape_all_web3() -> list[dict]:
 
     print("  [Web3-Greenhouse] Scraping...")
     gh = scrape_greenhouse_web3()
-    print(f"    → {len(gh)} jobs dari {len(GREENHOUSE_COMPANIES)} perusahaan")
+    print(f"    -> {len(gh)} jobs dari {len(GREENHOUSE_COMPANIES)} perusahaan")
     all_jobs.extend(gh)
 
     print("  [Web3-Lever] Scraping...")
     lv = scrape_lever_web3()
-    print(f"    → {len(lv)} jobs dari {len(LEVER_COMPANIES)} perusahaan")
+    print(f"    -> {len(lv)} jobs dari {len(LEVER_COMPANIES)} perusahaan")
     all_jobs.extend(lv)
 
     print("  [Web3-Ashby] Scraping...")
     ash = scrape_ashby_web3()
-    print(f"    → {len(ash)} jobs dari {len(ASHBY_COMPANIES)} perusahaan")
+    print(f"    -> {len(ash)} jobs dari {len(ASHBY_COMPANIES)} perusahaan")
     all_jobs.extend(ash)
 
     print("  [Web3-Boards] Scraping...")
     boards = scrape_web3_boards()
-    print(f"    → {len(boards)} jobs dari Web3 job boards")
+    print(f"    -> {len(boards)} jobs dari Web3 job boards")
     all_jobs.extend(boards)
 
     return all_jobs

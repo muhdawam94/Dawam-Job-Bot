@@ -1,5 +1,9 @@
 # config.py — UPDATE: ganti ANTHROPIC_API_KEY → GROQ_API_KEY
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 APPLICANT_NAME   = os.getenv("APPLICANT_NAME", "Dawam")
 APPLICANT_EMAIL  = os.getenv("APPLICANT_EMAIL", "your@gmail.com")

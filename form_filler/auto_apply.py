@@ -120,13 +120,13 @@ def apply_greenhouse(url: str, cover: str) -> dict:
 
         if submitted:
             time.sleep(2)
-            print(f"[Greenhouse] ✅ Submitted! Fields filled: {filled}")
+            print(f"[Greenhouse] [OK] Submitted! Fields filled: {filled}")
             result["success"] = True
         else:
-            print(f"[Greenhouse] ⚠️ Fields filled: {filled}, submit manual diperlukan")
+            print(f"[Greenhouse] [WARNING] Fields filled: {filled}, submit manual diperlukan")
 
     except Exception as e:
-        print(f"[Greenhouse] ✗ {e}")
+        print(f"[Greenhouse] X {e}")
     finally:
         driver.quit()
     return result
@@ -166,13 +166,13 @@ def apply_lever(url: str, cover: str) -> dict:
 
         if submitted:
             time.sleep(2)
-            print(f"[Lever] ✅ Submitted! Fields: {filled}")
+            print(f"[Lever] [OK] Submitted! Fields: {filled}")
             result["success"] = True
         else:
-            print(f"[Lever] ⚠️ Fields: {filled}, submit manual diperlukan")
+            print(f"[Lever] [WARNING] Fields: {filled}, submit manual diperlukan")
 
     except Exception as e:
-        print(f"[Lever] ✗ {e}")
+        print(f"[Lever] X {e}")
     finally:
         driver.quit()
     return result
@@ -198,13 +198,13 @@ def apply_ashby(url: str, cover: str) -> dict:
         submitted = _click(driver, ["button[type='submit']", "button[data-testid='submit']"])
         if submitted:
             time.sleep(2)
-            print(f"[Ashby] ✅ Submitted!")
+            print(f"[Ashby] [OK] Submitted!")
             result["success"] = True
         else:
-            print(f"[Ashby] ⚠️ Submit manual diperlukan")
+            print(f"[Ashby] [WARNING] Submit manual diperlukan")
 
     except Exception as e:
-        print(f"[Ashby] ✗ {e}")
+        print(f"[Ashby] X {e}")
     finally:
         driver.quit()
     return result
@@ -239,7 +239,7 @@ def apply_workday(url: str, cover: str) -> dict:
         result["success"] = True
 
     except Exception as e:
-        print(f"[Workday] ✗ {e}")
+        print(f"[Workday] X {e}")
     finally:
         driver.quit()
     return result
@@ -264,11 +264,182 @@ def apply_smartrecruiters(url: str, cover: str) -> dict:
         submitted = _click(driver, ["button[data-ui='btn-primary']", "button[type='submit']"])
         if submitted:
             time.sleep(2)
-            print(f"[SmartRecruiters] ✅ Submitted!")
+            print(f"[SmartRecruiters] [OK] Submitted!")
             result["success"] = True
 
     except Exception as e:
-        print(f"[SmartRecruiters] ✗ {e}")
+        print(f"[SmartRecruiters] X {e}")
+    finally:
+        driver.quit()
+    return result
+
+# ── WELLFOUND (AngelList) — Web3/Startup favorite ────────────
+def apply_wellfound(url: str, cover: str) -> dict:
+    print(f"[Wellfound] {url[:70]}")
+    driver = _driver()
+    result = {"success": False, "platform": "wellfound", "url": url}
+    try:
+        driver.get(url)
+        time.sleep(2)
+
+        # Click "Apply" button if not on application page
+        _click(driver, ["a[data-test='ApplyButton']", "button:contains('Apply')", "a.apply"])
+        time.sleep(2)
+
+        _try_fill(driver, ["input[name='name']", "#name", "input[placeholder*='name']"], APPLICANT["full_name"])
+        _try_fill(driver, ["input[name='email']", "#email", "input[type='email']"], APPLICANT["email"])
+        _try_fill(driver, ["textarea[name='note']", "textarea[placeholder*='tell']", "#note"], cover)
+        _try_fill(driver, ["input[name='linkedin']", "input[placeholder*='LinkedIn']"], APPLICANT["linkedin"])
+
+        _upload(driver, APPLICANT["cv_path"])
+        time.sleep(1)
+
+        submitted = _click(driver, ["button[type='submit']", "button[data-test='submit']", ".submit-btn"])
+        if submitted:
+            time.sleep(2)
+            print(f"[Wellfound] [OK] Submitted!")
+            result["success"] = True
+        else:
+            print(f"[Wellfound] [WARNING] Submit manual diperlukan")
+
+    except Exception as e:
+        print(f"[Wellfound] X {e}")
+    finally:
+        driver.quit()
+    return result
+
+# ── BAMBOOHR ─────────────────────────────────────────────────
+def apply_bamboohr(url: str, cover: str) -> dict:
+    print(f"[BambooHR] {url[:70]}")
+    driver = _driver()
+    result = {"success": False, "platform": "bamboohr", "url": url}
+    try:
+        driver.get(url)
+        time.sleep(2)
+
+        _try_fill(driver, ["#firstName", "input[name='firstName']"], APPLICANT["first_name"])
+        _try_fill(driver, ["#lastName",  "input[name='lastName']"],  APPLICANT["last_name"])
+        _try_fill(driver, ["#email",     "input[name='email']"],     APPLICANT["email"])
+        _try_fill(driver, ["#phone",     "input[name='phone']"],     APPLICANT["phone"])
+
+        _try_fill(driver, ["textarea[name='coverLetter']", "#coverLetter"], cover)
+        _upload(driver, APPLICANT["cv_path"])
+        time.sleep(1)
+
+        submitted = _click(driver, ["button[type='submit']", "#submitApplication"])
+        if submitted:
+            time.sleep(2)
+            print(f"[BambooHR] [OK] Submitted!")
+            result["success"] = True
+
+    except Exception as e:
+        print(f"[BambooHR] X {e}")
+    finally:
+        driver.quit()
+    return result
+
+# ── BREEZY HR ────────────────────────────────────────────────
+def apply_breezy(url: str, cover: str) -> dict:
+    print(f"[BreezyHR] {url[:70]}")
+    driver = _driver()
+    result = {"success": False, "platform": "breezy", "url": url}
+    try:
+        driver.get(url)
+        time.sleep(2)
+
+        _try_fill(driver, ["input[name='name']", "#name"], APPLICANT["full_name"])
+        _try_fill(driver, ["input[name='email']", "#email"], APPLICANT["email"])
+        _try_fill(driver, ["input[name='phone']", "#phone"], APPLICANT["phone"])
+        _try_fill(driver, ["textarea[name='message']", "textarea[placeholder*='tell']"], cover)
+
+        _upload(driver, APPLICANT["cv_path"])
+        time.sleep(1)
+
+        submitted = _click(driver, ["button[type='submit']", ".btn-submit"])
+        if submitted:
+            time.sleep(2)
+            print(f"[BreezyHR] [OK] Submitted!")
+            result["success"] = True
+
+    except Exception as e:
+        print(f"[BreezyHR] X {e}")
+    finally:
+        driver.quit()
+    return result
+
+# ── GENERIC FORM FILLER (fallback untuk web kecil) ───────────
+def apply_generic(url: str, cover: str) -> dict:
+    """
+    Generic form filler untuk website company yang tidak dikenal.
+    Menggunakan heuristic untuk detect field names.
+    """
+    print(f"[Generic] {url[:70]}")
+    driver = _driver()
+    result = {"success": False, "platform": "generic", "url": url}
+    try:
+        driver.get(url)
+        time.sleep(3)
+
+        # Try common field patterns
+        filled = 0
+
+        # Name fields
+        name_selectors = [
+            "input[name*='name']", "input[id*='name']", "input[placeholder*='name' i]",
+            "input[name*='full']", "input[name*='vorname']", "input[name*='nachname']"  # German
+        ]
+        if _try_fill(driver, name_selectors, APPLICANT["full_name"]):
+            filled += 1
+
+        # Email fields
+        email_selectors = [
+            "input[type='email']", "input[name*='email']", "input[id*='email']",
+            "input[name*='mail']", "input[placeholder*='email' i]"
+        ]
+        if _try_fill(driver, email_selectors, APPLICANT["email"]):
+            filled += 1
+
+        # Phone fields
+        phone_selectors = [
+            "input[type='tel']", "input[name*='phone']", "input[name*='telefon']",
+            "input[id*='phone']", "input[placeholder*='phone' i]"
+        ]
+        if _try_fill(driver, phone_selectors, APPLICANT["phone"]):
+            filled += 1
+
+        # Message/Cover letter fields
+        message_selectors = [
+            "textarea[name*='message']", "textarea[name*='cover']", "textarea[name*='anschreiben']",  # German
+            "textarea[id*='message']", "textarea[placeholder*='tell' i]", "textarea[placeholder*='about' i]",
+            "textarea", "#message", "#cover_letter"
+        ]
+        if _try_fill(driver, message_selectors, cover):
+            filled += 1
+
+        # Resume upload
+        if _upload(driver, APPLICANT["cv_path"]):
+            filled += 1
+
+        # Try to submit
+        submit_selectors = [
+            "button[type='submit']", "input[type='submit']",
+            "button[name*='submit']", ".submit-btn", "#submit",
+            "button:contains('Submit')", "button:contains('Send')", "button:contains('Apply')",
+            "button:contains('Bewerben')"  # German
+        ]
+        submitted = _click(driver, submit_selectors, timeout=3)
+
+        if submitted and filled >= 3:
+            time.sleep(2)
+            print(f"[Generic] [OK] Submitted! Fields filled: {filled}")
+            result["success"] = True
+        else:
+            print(f"[Generic] [WARNING] Fields filled: {filled}, manual check needed")
+            result["error"] = f"Only {filled} fields filled, submit uncertain"
+
+    except Exception as e:
+        print(f"[Generic] X {e}")
+        result["error"] = str(e)
     finally:
         driver.quit()
     return result
@@ -284,6 +455,25 @@ def detect_platform(url: str) -> str:
     if "workday.com"         in u: return "workday"
     if "ashbyhq.com"         in u: return "ashby"
     if "smartrecruiters.com" in u: return "smartrecruiters"
+    if "wellfound.com"       in u: return "wellfound"
+    if "angel.co"            in u: return "wellfound"  # old domain
+    if "bamboohr.com"        in u: return "bamboohr"
+    if "breezy.hr"           in u: return "breezy"
+    if "apply.workable.com"  in u: return "generic"
+    if "jobs.ashbyhq.com"    in u: return "ashby"
+
+    # Web3 specific patterns
+    if any(x in u for x in ["web3.career", "crypto.jobs", "cryptojobslist"]):
+        return "generic"
+
+    # German freelance platforms
+    if any(x in u for x in ["freelance.de", "gulp.de", "freelancermap", "malt.de"]):
+        return "generic"
+
+    # If has /jobs/, /careers/, /apply in path → likely a career page
+    if any(x in u for x in ["/jobs/", "/careers/", "/apply", "/positions"]):
+        return "generic"
+
     return "unknown"
 
 def auto_apply(job: dict) -> dict:
@@ -306,10 +496,18 @@ def auto_apply(job: dict) -> dict:
         return apply_ashby(url, cover)
     elif platform == "smartrecruiters":
         return apply_smartrecruiters(url, cover)
+    elif platform == "wellfound":
+        return apply_wellfound(url, cover)
+    elif platform == "bamboohr":
+        return apply_bamboohr(url, cover)
+    elif platform == "breezy":
+        return apply_breezy(url, cover)
+    elif platform == "generic":
+        return apply_generic(url, cover)
     else:
-        print(f"[AutoApply] Platform tidak dikenal — apply manual")
-        print(f"\nCover letter untuk di-copy:\n{cover}")
-        return {"success": False, "platform": "unknown", "url": url}
+        print(f"[AutoApply] Platform tidak dikenal -- skip auto-apply")
+        print(f"\n[TIP] Cover letter untuk di-copy manual:\n{cover[:500]}...")
+        return {"success": False, "platform": "unknown", "url": url, "error": "Platform not supported"}
 
 
 if __name__ == "__main__":
@@ -330,5 +528,5 @@ if __name__ == "__main__":
         "description": "Remote developer position"
     }
     result = auto_apply(job)
-    status = "✅ Berhasil!" if result["success"] else "⚠️ Perlu cek manual"
+    status = "[OK] Berhasil!" if result["success"] else "[WARNING] Perlu cek manual"
     print(f"\nHasil: {status}")

@@ -8,17 +8,18 @@ from scrapers.newboards       import scrape_arc, scrape_freelancermap, scrape_ma
 from scrapers.company_careers import scrape_company_careers, COMPANY_CAREER_PAGES
 from scrapers.web3_jobs       import scrape_all_web3
 from core.filter   import filter_jobs
-from core.tracker  import init_db, is_seen, save_job, mark_applied, get_stats, get_all_jobs
+from core.tracker  import init_db, is_seen, save_job, mark_applied, get_stats, get_all_jobs, update_auto_apply_status
 from core.cover_letter import generate as gen_cover
 from core.emailer  import send_application
 from core.notifier import (notify_new_job_with_cover, notify_new_jobs_summary,
-                            notify_applied, notify_summary, notify_error)
+                            notify_applied, notify_summary, notify_error, notify_auto_apply_result)
 from config        import MAX_JOBS_PER_SOURCE, MAX_EMAILS_PER_RUN, SEND_EMAILS
+from form_filler.auto_apply import auto_apply, detect_platform
 
 EXTRA_SCRAPERS = [
     ("Arc.dev",          scrape_arc),
-    ("FreelancerMap🇩🇪", scrape_freelancermap),
-    ("Malt🇩🇪",          scrape_malt),
+    ("FreelancerMap[DE]", scrape_freelancermap),
+    ("Malt[DE]",          scrape_malt),
     ("Contra",           scrape_contra),
     ("Gun.io",           scrape_gunio),
 ]
@@ -36,28 +37,28 @@ def run(dry_run=False):
         print(f"\n[Scraper] {name}...")
         try:
             jobs = fn()[:MAX_JOBS_PER_SOURCE]
-            print(f"  → {len(jobs)} jobs")
+            print(f"  -> {len(jobs)} jobs")
             all_raw.extend(jobs)
         except Exception as e:
-            print(f"  ✗ {e}")
+            print(f"  X {e}")
 
     # 2. Web3 khusus (Greenhouse + Lever + Web3 boards)
-    print(f"\n[Scraper] 🌐 WEB3 SOURCES...")
+    print(f"\n[Scraper] WEB3 SOURCES...")
     try:
         web3_jobs = scrape_all_web3()
-        print(f"  → {len(web3_jobs)} Web3 jobs total")
+        print(f"  -> {len(web3_jobs)} Web3 jobs total")
         all_raw.extend(web3_jobs)
     except Exception as e:
-        print(f"  ✗ Web3 scraper error: {e}")
+        print(f"  X Web3 scraper error: {e}")
 
     # 3. Company career pages
     print(f"\n[Scraper] Company Career Pages ({len(COMPANY_CAREER_PAGES)} perusahaan)...")
     try:
         career_jobs = scrape_company_careers()
-        print(f"  → {len(career_jobs)} jobs")
+        print(f"  -> {len(career_jobs)} jobs")
         all_raw.extend(career_jobs)
     except Exception as e:
-        print(f"  ✗ {e}")
+        print(f"  X {e}")
 
     # Filter & deduplicate
     print(f"\n[Filter] Total raw: {len(all_raw)}")
@@ -73,9 +74,10 @@ def run(dry_run=False):
     # Summary ke Telegram
     notify_new_jobs_summary(new_jobs)
 
-    # Per job: cover letter + notif Telegram
+    # Per job: cover letter + notif Telegram + AUTO-APPLY
     applied_count = 0
-    print(f"\n[Cover+Notify] {len(new_jobs)} jobs...")
+    auto_applied_count = 0
+    print(f"\n[Cover+Notify+AutoApply] {len(new_jobs)} jobs...")
 
     for i, job in enumerate(new_jobs, 1):
         source = job.get('source', '')
@@ -85,7 +87,33 @@ def run(dry_run=False):
         notify_new_job_with_cover(job, cover)
         save_job(job, status="notified", cover_letter=cover)
 
-        if job.get("email") and not dry_run and SEND_EMAILS:
+        # AUTO-APPLY: Attempt form filling for supported platforms
+        url = job.get("url", "")
+        platform = detect_platform(url)
+
+        if platform != "unknown" and not dry_run:
+            print(f"      -> Auto-apply attempt: {platform}...")
+            try:
+                result = auto_apply(job)
+
+                if result.get("success"):
+                    update_auto_apply_status(job["id"], True, platform)
+                    notify_auto_apply_result(job, True, platform)
+                    auto_applied_count += 1
+                    applied_count += 1
+                    print(f"      [OK] Auto-applied successfully!")
+                else:
+                    error = result.get("error", "Form submission failed")
+                    update_auto_apply_status(job["id"], False, platform, error)
+                    notify_auto_apply_result(job, False, platform, error)
+                    print(f"      [WARNING] Auto-apply failed: {error}")
+            except Exception as e:
+                error = str(e)
+                update_auto_apply_status(job["id"], False, platform, error)
+                print(f"      X Auto-apply error: {e}")
+
+        # Fallback: email application (for jobs with direct email)
+        elif job.get("email") and not dry_run and SEND_EMAILS:
             if applied_count < MAX_EMAILS_PER_RUN:
                 ok = send_application(job, cover)
                 if ok:
@@ -95,7 +123,7 @@ def run(dry_run=False):
 
     stats = get_stats()
     notify_summary(stats, len(new_jobs), applied_count)
-    print(f"\n✅ SELESAI | New: {len(new_jobs)} | Applied: {applied_count}")
+    print(f"\n[OK] SELESAI | New: {len(new_jobs)} | Applied: {applied_count} (Auto: {auto_applied_count})")
     print(f"   DB Total: {stats['total']} | Total Applied: {stats['applied']}")
 
 def dashboard():

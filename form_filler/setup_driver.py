@@ -30,11 +30,11 @@ def install():
         driver.get("https://www.google.com")
         title = driver.title
         driver.quit()
-        print(f"  ✅ ChromeDriver OK! Test page: {title}")
-        print("\n✅ Setup selesai! Auto form filler siap dipakai.")
+        print(f"  [OK] ChromeDriver OK! Test page: {title}")
+        print("\n[OK] Setup selesai! Auto form filler siap dipakai.")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[ERROR] Error: {e}")
         print("\nSolusi:")
         print("1. Pastikan Google Chrome sudah terinstall di komputer")
         print("2. Download dari: https://www.google.com/chrome/")

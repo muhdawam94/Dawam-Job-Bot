@@ -21,9 +21,23 @@ def init_db():
                 status      TEXT DEFAULT 'new',
                 cover_letter TEXT,
                 applied_at  TEXT,
-                created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+                auto_apply_status TEXT,
+                auto_apply_platform TEXT,
+                auto_apply_error TEXT
             )
         """)
+        c.commit()
+        # Migration: add new columns if they don't exist (for existing DBs)
+        try:
+            c.execute("ALTER TABLE jobs ADD COLUMN auto_apply_status TEXT")
+        except: pass
+        try:
+            c.execute("ALTER TABLE jobs ADD COLUMN auto_apply_platform TEXT")
+        except: pass
+        try:
+            c.execute("ALTER TABLE jobs ADD COLUMN auto_apply_error TEXT")
+        except: pass
         c.commit()
 
 def is_seen(job_id: str) -> bool:
@@ -46,6 +60,20 @@ def mark_applied(job_id: str):
     with _conn() as c:
         c.execute("UPDATE jobs SET status='applied', applied_at=? WHERE id=?",
                   (datetime.utcnow().isoformat(), job_id))
+        c.commit()
+
+def update_auto_apply_status(job_id: str, success: bool, platform: str, error: str = ""):
+    """Update auto-apply status for a job"""
+    status = "success" if success else "failed"
+    with _conn() as c:
+        c.execute("""
+            UPDATE jobs
+            SET auto_apply_status=?, auto_apply_platform=?, auto_apply_error=?
+            WHERE id=?
+        """, (status, platform, error, job_id))
+        if success:
+            c.execute("UPDATE jobs SET status='applied', applied_at=? WHERE id=?",
+                      (datetime.utcnow().isoformat(), job_id))
         c.commit()
 
 def get_stats() -> dict:
