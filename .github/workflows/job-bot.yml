@@ -22,15 +22,34 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@latest
-        with:
-          chrome-version: stable
+      - name: Install Chrome and ChromeDriver
+        run: |
+          # Install Chrome
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+          # Verify Chrome installation
+          google-chrome --version
+          which google-chrome
+
+          # Install ChromeDriver (matching Chrome version)
+          CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
+          echo "Chrome version: $CHROME_VERSION"
+
+          # ChromeDriver will be auto-managed by webdriver-manager in Python
+          echo "ChromeDriver will be managed by webdriver-manager package"
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+
+          # Verify critical packages
+          python -c "import selenium; print(f'Selenium: {selenium.__version__}')"
+          python -c "import bs4; print('BeautifulSoup4: OK')"
+          python -c "import groq; print('Groq: OK')"
 
       - name: Run Job Bot
         env:
