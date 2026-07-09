@@ -27,17 +27,6 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Chrome and ChromeDriver
-        run: |
-          # Install chromium-browser and chromium-chromedriver via apt (reliable!)
-          sudo apt-get update -qq
-          sudo apt-get install -y chromium-browser chromium-chromedriver
-
-          # Verify installation
-          chromium-browser --version || google-chrome --version || chrome --version
-          chromedriver --version
-          which chromedriver
-
       - name: Install dependencies
         run: |
           pip install --upgrade pip
