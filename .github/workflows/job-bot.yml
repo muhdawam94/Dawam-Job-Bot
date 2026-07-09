@@ -27,18 +27,16 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
-
-      - name: Setup ChromeDriver
-        uses: nanasess/setup-chromedriver@v2
+      - name: Verify Chrome (pre-installed on Ubuntu)
+        run: |
+          google-chrome --version
+          which google-chrome
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          # webdriver-manager will auto-install ChromeDriver on first use
 
       - name: Restore jobs database
         uses: actions/cache@v4
