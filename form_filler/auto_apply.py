@@ -40,12 +40,20 @@ def _driver(headless=True):
     opts.add_argument("--window-size=1920,1080")
     opts.add_argument("--disable-blink-features=AutomationControlled")
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+
+    # Create driver
     try:
         from webdriver_manager.chrome import ChromeDriverManager
         service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=opts)
+        driver = webdriver.Chrome(service=service, options=opts)
     except:
-        return webdriver.Chrome(options=opts)
+        driver = webdriver.Chrome(options=opts)
+
+    # Set timeouts to prevent infinite hangs
+    driver.set_page_load_timeout(30)  # Max 30s to load a page
+    driver.set_script_timeout(30)     # Max 30s for scripts
+
+    return driver
 
 def _fill(driver, selector, value, by=By.CSS_SELECTOR, timeout=5):
     try:

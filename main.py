@@ -88,10 +88,14 @@ def run(dry_run=False):
         save_job(job, status="notified", cover_letter=cover)
 
         # AUTO-APPLY: Attempt form filling for supported platforms
+        # Only attempt for known reliable platforms to prevent workflow hangs
+        SAFE_PLATFORMS = ["greenhouse", "lever", "ashby", "bamboohr", "smartrecruiters",
+                         "wellfound", "breezy"]
+
         url = job.get("url", "")
         platform = detect_platform(url)
 
-        if platform != "unknown" and not dry_run:
+        if platform in SAFE_PLATFORMS and not dry_run:
             print(f"      -> Auto-apply attempt: {platform}...")
             try:
                 result = auto_apply(job)
@@ -111,6 +115,10 @@ def run(dry_run=False):
                 error = str(e)
                 update_auto_apply_status(job["id"], False, platform, error)
                 print(f"      X Auto-apply error: {e}")
+        elif platform == "generic":
+            print(f"      [SKIP] Generic platform - manual apply recommended")
+        elif platform == "unknown":
+            print(f"      [SKIP] Platform not supported for auto-apply")
 
         # Fallback: email application (for jobs with direct email)
         elif job.get("email") and not dry_run and SEND_EMAILS:
