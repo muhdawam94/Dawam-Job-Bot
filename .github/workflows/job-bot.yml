@@ -2,11 +2,11 @@ name: Job Bot - Auto Apply
 
 on:
   schedule:
-    # Run every 12 hours (at 00:00 and 12:00 UTC)
-    # That's 7 AM and 7 PM Indonesia time (UTC+7)
-    - cron: '0 */12 * * *'
+    # Run 3x daily: 08:00, 13:00, 18:00 WIB (UTC+7)
+    - cron: '0 1 * * *'   # 08:00 WIB
+    - cron: '0 6 * * *'   # 13:00 WIB
+    - cron: '0 11 * * *'  # 18:00 WIB
 
-  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -17,10 +17,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Restore CV from secret
+        run: echo "${{ secrets.CV_BASE64 }}" | base64 -d > cv.pdf
+        continue-on-error: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
@@ -35,6 +40,13 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Restore jobs database
+        uses: actions/cache@v4
+        with:
+          path: data/jobs.db
+          key: jobs-db-${{ github.run_id }}
+          restore-keys: jobs-db-
+
       - name: Run Job Bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -42,10 +54,16 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           APPLICANT_NAME: ${{ secrets.APPLICANT_NAME }}
           APPLICANT_EMAIL: ${{ secrets.APPLICANT_EMAIL }}
-        run: |
-          echo "Starting Job Bot..."
-          python -u main.py
-          echo "Job Bot completed!"
+          CV_PATH: cv.pdf
+        run: python -u main.py
+
+      - name: Upload database artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jobs-db-${{ github.run_number }}
+          path: data/jobs.db
+          retention-days: 30
 
       - name: Upload logs (if failed)
         if: failure()

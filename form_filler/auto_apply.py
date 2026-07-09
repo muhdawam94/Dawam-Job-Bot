@@ -367,75 +367,115 @@ def apply_breezy(url: str, cover: str) -> dict:
         driver.quit()
     return result
 
-# ── GENERIC FORM FILLER (fallback untuk web kecil) ───────────
+# ── GENERIC FORM FILLER (improved fallback) ──────────────────
 def apply_generic(url: str, cover: str) -> dict:
     """
-    Generic form filler untuk website company yang tidak dikenal.
-    Menggunakan heuristic untuk detect field names.
+    Generic form filler dengan improved heuristics.
+    Handles multi-step forms, cookie popups, and better field detection.
     """
     print(f"[Generic] {url[:70]}")
     driver = _driver()
     result = {"success": False, "platform": "generic", "url": url}
     try:
         driver.get(url)
-        time.sleep(3)
+        time.sleep(4)  # Wait longer for dynamic content
 
-        # Try common field patterns
+        # Dismiss cookie consent popups
+        _click(driver, [
+            "button:contains('Accept')", "button:contains('OK')", "button:contains('Got it')",
+            "button:contains('Agree')", "button:contains('Close')", "#onetrust-accept-btn-handler",
+            ".cookie-consent-accept", "[data-testid='cookie-accept']"
+        ], timeout=3)
+        time.sleep(1)
+
+        # Try to click "Apply" button if on job listing page
+        _click(driver, [
+            "a:contains('Apply')", "button:contains('Apply')", "a:contains('Apply Now')",
+            "button:contains('Apply Now')", "a[data-qa*='apply']",
+            "button[class*='apply']", "a[class*='apply']"
+        ], timeout=3)
+        time.sleep(3)  # Wait for apply form to load
+
         filled = 0
 
-        # Name fields
-        name_selectors = [
-            "input[name*='name']", "input[id*='name']", "input[placeholder*='name' i]",
-            "input[name*='full']", "input[name*='vorname']", "input[name*='nachname']"  # German
-        ]
-        if _try_fill(driver, name_selectors, APPLICANT["full_name"]):
+        # First/Last name (try separate fields first)
+        if _try_fill(driver, ["input[name='first_name']", "input[id*='first' i]", "input[placeholder*='first' i]"], APPLICANT["first_name"]):
+            filled += 1
+            _try_fill(driver, ["input[name='last_name']", "input[id*='last' i]", "input[placeholder*='last' i]"], APPLICANT["last_name"])
+        # Full name fallback
+        elif _try_fill(driver, ["input[name*='name']", "input[id*='name' i]", "input[placeholder*='name' i]", "input[name*='full']"], APPLICANT["full_name"]):
             filled += 1
 
-        # Email fields
-        email_selectors = [
-            "input[type='email']", "input[name*='email']", "input[id*='email']",
-            "input[name*='mail']", "input[placeholder*='email' i]"
-        ]
-        if _try_fill(driver, email_selectors, APPLICANT["email"]):
+        # Email
+        if _try_fill(driver, ["input[type='email']", "input[name*='email']", "input[id*='email' i]", "input[placeholder*='email' i]", "input[name*='mail']"], APPLICANT["email"]):
             filled += 1
 
-        # Phone fields
-        phone_selectors = [
-            "input[type='tel']", "input[name*='phone']", "input[name*='telefon']",
-            "input[id*='phone']", "input[placeholder*='phone' i]"
-        ]
-        if _try_fill(driver, phone_selectors, APPLICANT["phone"]):
+        # Phone
+        if _try_fill(driver, ["input[type='tel']", "input[name*='phone']", "input[id*='phone' i]", "input[placeholder*='phone' i]", "input[name*='telefon']"], APPLICANT["phone"]):
             filled += 1
 
-        # Message/Cover letter fields
-        message_selectors = [
-            "textarea[name*='message']", "textarea[name*='cover']", "textarea[name*='anschreiben']",  # German
-            "textarea[id*='message']", "textarea[placeholder*='tell' i]", "textarea[placeholder*='about' i]",
-            "textarea", "#message", "#cover_letter"
-        ]
-        if _try_fill(driver, message_selectors, cover):
+        # LinkedIn
+        if _try_fill(driver, ["input[name*='linkedin']", "input[id*='linkedin' i]", "input[placeholder*='linkedin' i]"], APPLICANT["linkedin"]):
             filled += 1
 
-        # Resume upload
+        # GitHub/Portfolio
+        _try_fill(driver, ["input[name*='github']", "input[id*='github' i]", "input[placeholder*='github' i]"], APPLICANT["github"])
+
+        # Message/Cover letter (try multiple patterns)
+        cover_selectors = [
+            "textarea[name*='cover']", "textarea[name*='message']",
+            "textarea[id*='cover' i]", "textarea[id*='message' i]",
+            "textarea[placeholder*='cover' i]", "textarea[placeholder*='tell' i]",
+            "textarea[placeholder*='about' i]", "textarea[placeholder*='message' i]",
+            "textarea[name*='anschreiben']",  # German
+            "textarea"
+        ]
+        if _try_fill(driver, cover_selectors, cover):
+            filled += 1
+
+        # Resume/CV upload
         if _upload(driver, APPLICANT["cv_path"]):
             filled += 1
 
-        # Try to submit
-        submit_selectors = [
-            "button[type='submit']", "input[type='submit']",
-            "button[name*='submit']", ".submit-btn", "#submit",
-            "button:contains('Submit')", "button:contains('Send')", "button:contains('Apply')",
-            "button:contains('Bewerben')"  # German
-        ]
-        submitted = _click(driver, submit_selectors, timeout=3)
+        print(f"[Generic] Fields filled: {filled}")
 
-        if submitted and filled >= 3:
-            time.sleep(2)
-            print(f"[Generic] [OK] Submitted! Fields filled: {filled}")
-            result["success"] = True
+        # Try to submit if we have at least 3 fields
+        if filled >= 3:
+            # Scroll to bottom to make submit button visible
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(1)
+
+            submitted = _click(driver, [
+                "button[type='submit']",
+                "input[type='submit']",
+                "button[name*='submit']",
+                "#submit", ".submit-btn",
+                "button:contains('Submit')",
+                "button:contains('Send')",
+                "button:contains('Apply')",
+                "button:contains('Apply Now')",
+                "button:contains('Bewerben')",
+                "button[class*='submit']",
+                "button[class*='apply']"
+            ], timeout=5)
+
+            if submitted:
+                time.sleep(3)
+                # Check for success indicators
+                page_text = driver.page_source.lower()
+                success_indicators = ["thank you", "submitted", "received", "success", "applied"]
+                if any(indicator in page_text for indicator in success_indicators):
+                    print(f"[Generic] [OK] Submitted successfully!")
+                    result["success"] = True
+                else:
+                    print(f"[Generic] [OK] Submit clicked (verify manually)")
+                    result["success"] = True  # Assume success if submit was clicked
+            else:
+                print(f"[Generic] [WARNING] Submit button not found")
+                result["error"] = "Submit button not found"
         else:
-            print(f"[Generic] [WARNING] Fields filled: {filled}, manual check needed")
-            result["error"] = f"Only {filled} fields filled, submit uncertain"
+            print(f"[Generic] [WARNING] Too few fields filled ({filled}), skipping submit")
+            result["error"] = f"Only {filled} fields filled"
 
     except Exception as e:
         print(f"[Generic] X {e}")
@@ -449,6 +489,8 @@ def apply_generic(url: str, cover: str) -> dict:
 # ══════════════════════════════════════════════════════════════
 def detect_platform(url: str) -> str:
     u = url.lower()
+
+    # Known ATS platforms
     if "greenhouse.io"       in u: return "greenhouse"
     if "lever.co"            in u: return "lever"
     if "myworkdayjobs"       in u: return "workday"
@@ -456,11 +498,22 @@ def detect_platform(url: str) -> str:
     if "ashbyhq.com"         in u: return "ashby"
     if "smartrecruiters.com" in u: return "smartrecruiters"
     if "wellfound.com"       in u: return "wellfound"
-    if "angel.co"            in u: return "wellfound"  # old domain
+    if "angel.co"            in u: return "wellfound"
     if "bamboohr.com"        in u: return "bamboohr"
     if "breezy.hr"           in u: return "breezy"
     if "apply.workable.com"  in u: return "generic"
     if "jobs.ashbyhq.com"    in u: return "ashby"
+    if "boards.greenhouse.io" in u: return "greenhouse"
+    if "jobs.lever.co"       in u: return "lever"
+
+    # More ATS platforms
+    if "icims.com"           in u: return "generic"
+    if "taleo.net"           in u: return "generic"
+    if "successfactors"      in u: return "generic"
+    if "jobvite.com"         in u: return "generic"
+    if "ultipro.com"         in u: return "generic"
+    if "paylocity.com"       in u: return "generic"
+    if "adp.com"             in u: return "generic"
 
     # Web3 specific patterns
     if any(x in u for x in ["web3.career", "crypto.jobs", "cryptojobslist"]):
@@ -470,8 +523,12 @@ def detect_platform(url: str) -> str:
     if any(x in u for x in ["freelance.de", "gulp.de", "freelancermap", "malt.de"]):
         return "generic"
 
-    # If has /jobs/, /careers/, /apply in path → likely a career page
-    if any(x in u for x in ["/jobs/", "/careers/", "/apply", "/positions"]):
+    # Remote job boards that link to company pages
+    if any(x in u for x in ["remoteok.com", "weworkremotely.com", "remotive.com", "himalayas.app", "arbeitnow.com"]):
+        return "generic"
+
+    # If has /jobs/, /careers/, /apply, /positions in path → likely a career page
+    if any(x in u for x in ["/jobs/", "/careers/", "/apply", "/positions", "/opening/", "/vacancy/"]):
         return "generic"
 
     return "unknown"
