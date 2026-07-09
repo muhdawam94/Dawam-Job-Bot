@@ -41,13 +41,9 @@ def _driver(headless=True):
     opts.add_argument("--disable-blink-features=AutomationControlled")
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
 
-    # Create driver
-    try:
-        from webdriver_manager.chrome import ChromeDriverManager
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=opts)
-    except:
-        driver = webdriver.Chrome(options=opts)
+    # Use system ChromeDriver (installed via apt on GitHub Actions)
+    # Skip webdriver-manager to avoid network download hangs on CI
+    driver = webdriver.Chrome(options=opts)
 
     # Set timeouts to prevent infinite hangs
     driver.set_page_load_timeout(30)  # Max 30s to load a page

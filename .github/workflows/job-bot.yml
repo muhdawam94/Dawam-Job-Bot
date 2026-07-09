@@ -27,16 +27,21 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Verify Chrome (pre-installed on Ubuntu)
+      - name: Install Chrome and ChromeDriver
         run: |
-          google-chrome --version
-          which google-chrome
+          # Install chromium-browser and chromium-chromedriver via apt (reliable!)
+          sudo apt-get update -qq
+          sudo apt-get install -y chromium-browser chromium-chromedriver
+
+          # Verify installation
+          chromium-browser --version || google-chrome --version || chrome --version
+          chromedriver --version
+          which chromedriver
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          # webdriver-manager will auto-install ChromeDriver on first use
 
       - name: Restore jobs database
         uses: actions/cache@v4
